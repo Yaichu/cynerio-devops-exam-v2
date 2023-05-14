@@ -1,0 +1,53 @@
+# docker-compose file to bring up the service together with Redis and Prometheus
+version: '3'
+
+services:
+  # Our app - api.py service
+  app:
+    ports:
+      - "5000:5000"
+    depends_on:
+      - redis
+    build:
+        context: .
+        dockerfile: ./Dockerfile
+    # pass Redis credentials
+    environment:
+      - REDIS_USER=cynerio
+      - REDIS_PASSWORD=cYN3ri0arethebest123
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/healthcheck"] # curl --fail http://localhost:5000/healthcheck || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis service
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    volumes:
+    # save the data on every change to an attached storage
+      - ./data:/data
+    # provide ACLs - user and password with self generated values
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"] # ["CMD", "curl", "-f", "http://localhost:6379/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Prometheus service
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+    # get the metrics from the app
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/healthcheck"] # ["CMD", "wget", "http://localhost:9090/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
